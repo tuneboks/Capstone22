@@ -1,4 +1,3 @@
-
 import logging
 from enum import Enum, IntEnum
 
@@ -6,6 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
+size = 5
+axes = [size, size, size]
+data = np.random.choice(2, size=axes, p=[0.7, 0.3])
+data2 =  np.random.choice(2, size=axes, p=[.9, .1])
+print(data2)
 class Cell(IntEnum):
     EMPTY = 0  # indicates empty cell where the agent can move to
     OCCUPIED = 1  # indicates cell which contains a wall and cannot be entered
@@ -33,7 +38,7 @@ class Status(Enum):
     PLAYING = 2
 
 class Maze:
-    actions = [Action.MOVE_LEFT, Action.MOVE_RIGHT, Action.MOVE_UP, Action.MOVE_DOWN, Action.FORWARD, Action.BACK]  # all possible actions
+    actions = [Action.MOVE_LEFT, Action.MOVE_RIGHT, Action.MOVE_UP, Action.MOVE_DOWN, Action.MOVE_FORWARD, Action.MOVE_BACK]  # all possible actions
     reward_exit = 10.0  # reward for reaching the exit cell
     penalty_move = -0.05  # penalty for a move which did not result in finding the exit cell
     penalty_visited = -0.25  # penalty for returning to a cell which was visited earlier
@@ -44,10 +49,10 @@ class Maze:
 
         self.__minimum_reward = -0.5 * self.maze.size  # stop game if accumulated reward is below this threshold
 
-        nrows, ncols = self.maze.shape
-        self.cells = [(col, row) for col in range(ncols) for row in range(nrows)]
-        self.empty = [(col, row) for col in range(ncols) for row in range(nrows) if self.maze[row, col] == Cell.EMPTY]
-        self.__exit_cell = (ncols - 1, nrows - 1) if exit_cell is None else exit_cell
+        nX, nY, nZ  = self.maze.shape
+        self.cells = [(x, y, z) for x in range(nX) for y in range(nY) for z in range(nZ)]
+        self.empty = [(x, y, z) for x in range(nX) for y in range(nY) for z in range(nZ) if self.maze[x, y, z] == Cell.EMPTY]
+        self.__exit_cell = (nX - 1, nY - 1, nZ - 1) if exit_cell is None else exit_cell
         self.empty.remove(self.__exit_cell)
 
         # Check for impossible maze layout
@@ -63,9 +68,7 @@ class Maze:
         self.__ax3 = None
 
         self.reset(start_cell)
-        
-         self.__ax1.set_xticks(np.arange(0.5, nrows, step=1))
-            self.__ax1.set_xticklabels([])
+
     def reset(self, start_cell=(0, 0, 0)):
         """ Reset the maze to its initial state and place the agent at start_cell.
             :param tuple start_cell: here the agent starts its journey through the maze (optional, else upper left)
@@ -102,3 +105,45 @@ class Maze:
             self.__ax1.get_figure().canvas.flush_events()
 
         return self.__observe()
+
+    def __observe(self):
+
+            """ Return the state of the maze - in this game the agents current location.
+                :return numpy.array [1][2]: agents current location
+            """
+            return np.array([[*self.__current_cell]])
+
+    def render(self, content=Render.NOTHING):
+        """ Record what will be rendered during play and/or training.
+            :param Render content: NOTHING, TRAINING, MOVES
+        """
+        # self.__render = content
+        #
+        # if self.__render == Render.NOTHING:
+        #     if self.__ax1:
+        #         self.__ax1.get_figure().close()
+        #         self.__ax1 = None
+        #     if self.__ax2:
+        #         self.__ax2.get_figure().close()
+        #         self.__ax2 = None
+        # if self.__render == Render.TRAINING:
+        #     if self.__ax2 is None:
+        #         fig, self.__ax2 = plt.subplots(1, 1, tight_layout=True, projection='3d')
+        #         fig.canvas.set_window_title("Best move")
+        #         self.__ax2.set_axis_off()
+        #         self.render_q(None)
+        # if self.__render in (Render.MOVES, Render.TRAINING):
+        #     if self.__ax1 is None:
+        #         fig, self.__ax1 = plt.subplots(1, 1, tight_layout=True, projection='3d')
+        #         fig.canvas.set_window_title("Maze")
+        #
+        # plt.show(block=False)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.voxels(self.maze, edgecolors='black')
+
+        plt.show()
+
+#ax = fig.add_subplot(111, projection='3d')
+maze = Maze(data2)
+maze.render()
