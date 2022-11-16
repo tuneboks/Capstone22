@@ -63,3 +63,42 @@ class Maze:
         self.__ax3 = None
 
         self.reset(start_cell)
+        
+         self.__ax1.set_xticks(np.arange(0.5, nrows, step=1))
+            self.__ax1.set_xticklabels([])
+    def reset(self, start_cell=(0, 0, 0)):
+        """ Reset the maze to its initial state and place the agent at start_cell.
+            :param tuple start_cell: here the agent starts its journey through the maze (optional, else upper left)
+            :return: new state after reset
+        """
+        if start_cell not in self.cells:
+            raise Exception("Error: start cell at {} is not inside maze".format(start_cell))
+        if self.maze[start_cell[::-1]] == Cell.OCCUPIED:
+            raise Exception("Error: start cell at {} is not free".format(start_cell))
+        if start_cell == self.__exit_cell:
+            raise Exception("Error: start- and exit cell cannot be the same {}".format(start_cell))
+
+        self.__previous_cell = self.__current_cell = start_cell
+        self.__total_reward = 0.0  # accumulated reward
+        self.__visited = set()  # a set() only stores unique values
+
+        if self.__render in (Render.TRAINING, Render.MOVES):
+            # render the maze
+            nrows, ncols = self.maze.shape
+            self.__ax1.clear()
+            self.__ax1.set_xticks(np.arange(0.5, nrows, step=1))
+            self.__ax1.set_xticklabels([])
+            self.__ax1.set_yticks(np.arange(0.5, ncols, step=1))
+            self.__ax1.set_yticklabels([])
+            self.__ax1.set_zticks(np.arange(0.5, nrows, step=1))
+            self.__ax1.set_zticklabels([])
+            self.__ax1.grid(True)
+            self.__ax1.plot(*self.__current_cell, "rs", markersize=30)  # start is a big red square
+            self.__ax1.text(*self.__current_cell, "Start", ha="center", va="center", color="white")
+            self.__ax1.plot(*self.__exit_cell, "gs", markersize=30)  # exit is a big green square
+            self.__ax1.text(*self.__exit_cell, "Exit", ha="center", va="center", color="white")
+            self.__ax1.imshow(self.maze, cmap="binary")
+            self.__ax1.get_figure().canvas.draw()
+            self.__ax1.get_figure().canvas.flush_events()
+
+        return self.__observe()
