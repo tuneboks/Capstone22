@@ -10,7 +10,8 @@ size = 5
 axes = [size, size, size]
 data = np.random.choice(2, size=axes, p=[0.7, 0.3])
 data2 =  np.random.choice(2, size=axes, p=[.9, .1])
-print(data2)
+#print(data2)
+
 class Cell(IntEnum):
     EMPTY = 0  # indicates empty cell where the agent can move to
     OCCUPIED = 1  # indicates cell which contains a wall and cannot be entered
@@ -65,7 +66,6 @@ class Maze:
         self.__render = Render.NOTHING  # what to render
         self.__ax1 = None  # axes for rendering the moves
         self.__ax2 = None  # axes for rendering the best action per cell
-        self.__ax3 = None
 
         self.reset(start_cell)
 
@@ -74,6 +74,7 @@ class Maze:
             :param tuple start_cell: here the agent starts its journey through the maze (optional, else upper left)
             :return: new state after reset
         """
+        print("RESET CALLED")
         if start_cell not in self.cells:
             raise Exception("Error: start cell at {} is not inside maze".format(start_cell))
         if self.maze[start_cell[::-1]] == Cell.OCCUPIED:
@@ -95,12 +96,12 @@ class Maze:
             self.__ax1.set_yticklabels([])
             self.__ax1.set_zticks(np.arange(0.5, nrows, step=1))
             self.__ax1.set_zticklabels([])
-            self.__ax1.grid(True)
-            self.__ax1.plot(*self.__current_cell, "rs", markersize=30)  # start is a big red square
+            self.__ax1.axes(projection="3d")
+            self.__ax1.plot3D(*self.__current_cell, "rs", markersize=30)  # start is a big red square
             self.__ax1.text(*self.__current_cell, "Start", ha="center", va="center", color="white")
-            self.__ax1.plot(*self.__exit_cell, "gs", markersize=30)  # exit is a big green square
+            self.__ax1.plot3D(*self.__exit_cell, "gs", markersize=30)  # exit is a big green square
             self.__ax1.text(*self.__exit_cell, "Exit", ha="center", va="center", color="white")
-            self.__ax1.imshow(self.maze, cmap="binary")
+            #self.__ax1.imshow(self.maze, cmap="binary")
             self.__ax1.get_figure().canvas.draw()
             self.__ax1.get_figure().canvas.flush_events()
 
@@ -113,37 +114,199 @@ class Maze:
             """
             return np.array([[*self.__current_cell]])
 
-    def render(self, content=Render.NOTHING):
+    def render(self, content=Render.NOTHING, location = None):
         """ Record what will be rendered during play and/or training.
             :param Render content: NOTHING, TRAINING, MOVES
         """
-        # self.__render = content
-        #
-        # if self.__render == Render.NOTHING:
-        #     if self.__ax1:
-        #         self.__ax1.get_figure().close()
-        #         self.__ax1 = None
-        #     if self.__ax2:
-        #         self.__ax2.get_figure().close()
-        #         self.__ax2 = None
-        # if self.__render == Render.TRAINING:
-        #     if self.__ax2 is None:
-        #         fig, self.__ax2 = plt.subplots(1, 1, tight_layout=True, projection='3d')
-        #         fig.canvas.set_window_title("Best move")
-        #         self.__ax2.set_axis_off()
-        #         self.render_q(None)
-        # if self.__render in (Render.MOVES, Render.TRAINING):
-        #     if self.__ax1 is None:
-        #         fig, self.__ax1 = plt.subplots(1, 1, tight_layout=True, projection='3d')
-        #         fig.canvas.set_window_title("Maze")
-        #
-        # plt.show(block=False)
+        self.__render = content
+
+        if self.__render == Render.NOTHING:
+            if self.__ax1:
+                self.__ax1.get_figure().close()
+                self.__ax1 = None
+            if self.__ax2:
+                self.__ax2.get_figure().close()
+                self.__ax2 = None
+        if self.__render == Render.TRAINING:
+            if self.__ax2 is None:
+                fig, self.__ax2 = plt.subplots(1, 1, tight_layout=True)
+                fig.canvas.set_window_title("Best move")
+                self.__ax2.set_axis_off()
+                self.render_q(None)
+        if self.__render in (Render.MOVES, Render.TRAINING):
+            if self.__ax1 is None:
+                fig, self.__ax1 = plt.subplots(1, 1, tight_layout=True)
+                fig.canvas.set_window_title("Maze")
+
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.voxels(self.maze, edgecolors='black')
-
+        self.maze2 = self.maze.copy()
+        if location is not None:
+            self.maze2[location[0],location[1],location[2]] = 100
+        colors = plt.cm.plasma(self.maze2)
+        ax.voxels(self.maze2, facecolors =colors ,edgecolors='black')
         plt.show()
 
+    def step(self, action):
+        """ Move the agent according to 'action' and return the new state, reward and game status.
+            :param Action action: the agent will move in this direction
+            :return: state, reward, status
+        """
+        reward = self.__execute(action)
+        print("reward: ",reward)
+
+        return '','',''
+
+    def __possible_actions(self, cell=None):
+        """ Create a list with all possible actions from 'cell', avoiding the maze's edges and walls.
+            :param tuple cell: location of the agent (optional, else use current cell)
+            :return list: all possible actions
+        """
+        if cell is None:
+            col, row, channel = self.__current_cell
+        else:
+            print("cell: ",cell)
+            col, row, channel = cell
+
+        possible_actions = Maze.actions.copy()  # initially allow all
+
+        # now restrict the initial list by removing impossible actions
+        nrows, ncols, nchannel = self.maze.shape
+        if row == 0 or (row > 0 and self.maze[row - 1, col, channel] == Cell.OCCUPIED):
+            possible_actions.remove(Action.MOVE_UP)
+        if row == nrows - 1 or (row < nrows - 1 and self.maze[row + 1, col, channel] == Cell.OCCUPIED):
+            possible_actions.remove(Action.MOVE_DOWN)
+
+        if col == 0 or (col > 0 and self.maze[row, col - 1, channel] == Cell.OCCUPIED):
+            possible_actions.remove(Action.MOVE_LEFT)
+        if col == ncols - 1 or (col < ncols - 1 and self.maze[row, col + 1, channel] == Cell.OCCUPIED):
+            possible_actions.remove(Action.MOVE_RIGHT)
+
+        if channel == 0 or (channel > 0 and self.maze[row, col, channel-1] == Cell.OCCUPIED):
+            possible_actions.remove(Action.MOVE_FORWARD)
+        if channel == nchannel - 1 or (channel < nchannel - 1 and self.maze[row, col, channel+1] == Cell.OCCUPIED):
+            possible_actions.remove(Action.MOVE_BACK)
+
+        return possible_actions
+
+    def __execute(self, action):
+        """ Execute action and collect the reward or penalty.
+            :param Action action: direction in which the agent will move
+            :return float: reward or penalty which results from the action
+        """
+        possible_actions = self.__possible_actions(self.__current_cell)
+        print("V:",possible_actions )
+
+        if not possible_actions:
+            reward = self.__minimum_reward - 1  # cannot move anywhere, force end of game
+        elif action in possible_actions:
+            col, row, channel = self.__current_cell
+            if action == Action.MOVE_LEFT:
+                col -= 1
+            elif action == Action.MOVE_UP:
+                row -= 1
+            if action == Action.MOVE_RIGHT:
+                col += 1
+            elif action == Action.MOVE_DOWN:
+                row += 1
+            elif action == Action.MOVE_FORWARD:
+                channel -= 1
+            elif action == Action.MOVE_BACK:
+                channel += 1
+
+            self.__previous_cell = self.__current_cell
+            self.__current_cell = (col, row, channel)
+
+            if self.__render != Render.NOTHING:
+                self.__draw()
+
+            if self.__current_cell == self.__exit_cell:
+                reward = Maze.reward_exit  # maximum reward when reaching the exit cell
+            elif self.__current_cell in self.__visited:
+                reward = Maze.penalty_visited  # penalty when returning to a cell which was visited earlier
+            else:
+                reward = Maze.penalty_move  # penalty for a move which did not result in finding the exit cell
+
+            self.__visited.add(self.__current_cell)
+        else:
+            reward = Maze.penalty_impossible_move  # penalty for trying to enter an occupied cell or move out of the maze
+
+        return reward
+
+    def play(self, model, start_cell=(0, 0, 0)):
+        """ Play a single game, choosing the next move based a prediction from 'model'.
+            :param class AbstractModel model: the prediction model to use
+            :param tuple start_cell: agents initial cell (optional, else upper left)
+            :return Status: WIN, LOSE
+        """
+        self.reset(start_cell)
+
+        state = self.__observe()
+
+        print(state)
+        #while True:
+        for i in range(0,10):
+            action = model.predict(state=state)
+            print("action: ",action)
+            state, reward, status = self.step(action)
+            if status in (Status.WIN, Status.LOSE):
+                return state, reward, status
+        return state, reward, status
+
+
 #ax = fig.add_subplot(111, projection='3d')
-maze = Maze(data2)
-maze.render()
+
+# (1) start drawing the maize
+game = Maze(data2)
+game.render(location=(2,1,1))
+#maze.step()
+
+# only show the maze
+#game.render(Render.MOVES)
+#game.reset()
+
+'''
+# play using random model
+if test == Test.RANDOM_MODEL:
+    game.render(Render.MOVES)
+    model = models.RandomModel(game)
+    game.play(model, start_cell=(0, 0))
+'''
+import random
+# (2) random sample a step to Execute
+#actions = [Action.MOVE_LEFT, Action.MOVE_RIGHT, Action.MOVE_UP, Action.MOVE_DOWN, Action.MOVE_FORWARD, Action.MOVE_BACK]
+#action = random.choice(actions)
+
+
+import numpy as np
+import models
+from models import AbstractModel
+
+
+class RandomModel(AbstractModel):
+    """ Prediction model which randomly chooses the next action. """
+
+    def __init__(self, game, **kwargs):
+        super().__init__(game, name="RandomModel", **kwargs)
+
+    def q(self, state):
+        """ Return Q value for all actions for a certain state.
+            :return np.ndarray: Q values
+        """
+        return np.array([0, 0, 0, 0])
+
+    def predict(self, **kwargs):
+        """ Randomly choose the next action.
+            :return int: selected action
+        """
+        return random.choice(self.actions)
+
+
+#print(action)
+model = models.RandomModel(game)
+print('model: ', model)
+print(game.actions)
+
+
+state, reward, status=game.play(model, start_cell=(0, 0, 0))
+print("final: ",state, reward, status)
