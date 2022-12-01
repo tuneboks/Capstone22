@@ -646,11 +646,11 @@ class SarsaTableModel(AbstractModel):
         actions = np.nonzero(q == np.max(q))[0]  # get index of the action(s) with the max value
         return random.choice(actions)
     
-    #test == Test.SARSA:
-    #game.render(Render.TRAINING)
-    #model = models.SarsaTableModel(game)
-    #h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
-                             #stop_at_convergence=True)    
+test == Test.SARSA:
+game.render(Render.TRAINING)
+model = models.SarsaTableModel(game)
+h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
+                             stop_at_convergence=True)    
     
 #print(action)
 game = Maze(data2)
@@ -665,8 +665,8 @@ game.reset()
 # state, reward, status = game.play(model, start_cell=(0, 0, 0))
 # print("final: ",state, reward, status)
 
-print("Q-TABLE TRAINING")
-game.render(Render.TRAINING)
-model = models.QTableModel(game)
-h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
-                         stop_at_convergence=True)
+#print("Q-TABLE TRAINING")
+#game.render(Render.TRAINING)
+#model = models.QTableModel(game)
+#h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
+                         #stop_at_convergence=True)
