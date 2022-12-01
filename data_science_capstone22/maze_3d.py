@@ -88,15 +88,17 @@ class Maze:
 
         if self.__render in (Render.TRAINING, Render.MOVES):
             # render the maze
-            nrows, ncols = self.maze.shape
+            nrows, ncols, nchannels = self.maze.shape
+            print("AX_1")
+            print(self.__ax1)
             self.__ax1.clear()
             self.__ax1.set_xticks(np.arange(0.5, nrows, step=1))
             self.__ax1.set_xticklabels([])
             self.__ax1.set_yticks(np.arange(0.5, ncols, step=1))
             self.__ax1.set_yticklabels([])
-            self.__ax1.set_zticks(np.arange(0.5, nrows, step=1))
+            self.__ax1.set_zticks(np.arange(0.5, nchannels, step=1))
             self.__ax1.set_zticklabels([])
-            self.__ax1.axes(projection="3d")
+            #self.__ax1.axes(projection="3d")
             self.__ax1.plot3D(*self.__current_cell, "rs", markersize=30)  # start is a big red square
             self.__ax1.text(*self.__current_cell, "Start", ha="center", va="center", color="white")
             self.__ax1.plot3D(*self.__exit_cell, "gs", markersize=30)  # exit is a big green square
@@ -135,16 +137,18 @@ class Maze:
                 self.render_q(None)
         if self.__render in (Render.MOVES, Render.TRAINING):
             if self.__ax1 is None:
-                fig, self.__ax1 = plt.subplots(1, 1, tight_layout=True)
-                fig.canvas.set_window_title("Maze")
+                self.__ax1 = plt.figure().add_subplot(111, projection='3d')
+                #fig, self.__ax1 = plt.subplots(1, 1, tight_layout=True)
+                #fig.canvas.set_window_title("Maze")
+                colors = plt.cm.plasma(self.maze)
+                self.__ax1.voxels(self.maze, facecolors =colors ,edgecolors='black')
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # self.maze2 = self.maze.copy()
+        # if location is not None:
+        #     self.maze2[location[0],location[1],location[2]] = 100
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        self.maze2 = self.maze.copy()
-        if location is not None:
-            self.maze2[location[0],location[1],location[2]] = 100
-        colors = plt.cm.plasma(self.maze2)
-        ax.voxels(self.maze2, facecolors =colors ,edgecolors='black')
+
         plt.show()
 
     def step(self, action):
@@ -153,9 +157,23 @@ class Maze:
             :return: state, reward, status
         """
         reward = self.__execute(action)
-        print("reward: ",reward)
+        self.__total_reward += reward
+        status = self.__status()
+        state = self.__observe()
+        logging.debug("action: {:10s} | reward: {: .2f} | status: {}".format(Action(action).name, reward, status))
+        return state, reward, status
 
-        return '','',''
+    def __status(self):
+        """ Return the game status.
+            :return Status: current game status (WIN, LOSE, PLAYING)
+        """
+        if self.__current_cell == self.__exit_cell:
+            return Status.WIN
+
+        if self.__total_reward < self.__minimum_reward:  # force end of game after too much loss
+            return Status.LOSE
+
+        return Status.PLAYING
 
     def __possible_actions(self, cell=None):
         """ Create a list with all possible actions from 'cell', avoiding the maze's edges and walls.
@@ -233,6 +251,13 @@ class Maze:
 
         return reward
 
+    def __draw(self):
+        """ Draw a line from the agents previous cell to its current cell. """
+        self.__ax1.plot(*zip(*[self.__previous_cell, self.__current_cell]), "bo-")  # previous cells are blue dots
+        self.__ax1.plot(*self.__current_cell, "ro")  # current cell is a red dot
+        self.__ax1.get_figure().canvas.draw()
+        self.__ax1.get_figure().canvas.flush_events()
+
     def play(self, model, start_cell=(0, 0, 0)):
         """ Play a single game, choosing the next move based a prediction from 'model'.
             :param class AbstractModel model: the prediction model to use
@@ -242,23 +267,22 @@ class Maze:
         self.reset(start_cell)
 
         state = self.__observe()
-
+        print("Play called")
         print(state)
-        #while True:
-        for i in range(0,10):
+        while True:
+        #for x in range(20):
             action = model.predict(state=state)
             print("action: ",action)
             state, reward, status = self.step(action)
             if status in (Status.WIN, Status.LOSE):
                 return state, reward, status
-        return state, reward, status
+        #return state, reward, status #temporary
 
 
 #ax = fig.add_subplot(111, projection='3d')
 
 # (1) start drawing the maize
-game = Maze(data2)
-game.render(location=(2,1,1))
+
 #maze.step()
 
 # only show the maze
@@ -303,10 +327,13 @@ class RandomModel(AbstractModel):
 
 
 #print(action)
+game = Maze(data2)
+game.render(location=(2,1,1))
+game.reset()
+
+game.render(Render.MOVES)
 model = models.RandomModel(game)
-print('model: ', model)
-print(game.actions)
-
-
-state, reward, status=game.play(model, start_cell=(0, 0, 0))
+ # print('model: ', model)
+# print(game.actions)
+state, reward, status = game.play(model, start_cell=(0, 0, 0))
 print("final: ",state, reward, status)
