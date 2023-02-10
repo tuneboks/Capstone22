@@ -6,11 +6,20 @@ import numpy as np
 
 
 
-size = 5
+size = 4
 axes = [size, size, size]
 data = np.random.choice(2, size=axes, p=[0.7, 0.3])
-data2 =  np.random.choice(2, size=axes, p=[.9, .1])
-#print(data2)
+#data2 = np.random.choice(2, size=axes, p=[.9, .1])
+
+data2 = np.array([[[0, 1, 0, 1], [1, 1, 1, 1], [1, 1, 0, 0], [1, 1, 0, 1]], 
+                  [[0, 0, 0, 1], [0, 1, 0, 0], [1, 1, 1, 0], [1, 1, 0, 1]], 
+                  [[1, 1, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [1, 0, 1, 1]], 
+                  [[1, 1, 1, 1], [1, 0, 0, 1], [1, 0, 1, 1], [1, 0, 0, 0]]])
+
+#38 Occupied cells, finish at (4,4,4)
+
+print(data2)
+
 
 class Cell(IntEnum):
     EMPTY = 0  # indicates empty cell where the agent can move to
@@ -77,7 +86,7 @@ class Maze:
         print("RESET CALLED")
         if start_cell not in self.cells:
             raise Exception("Error: start cell at {} is not inside maze".format(start_cell))
-        if self.maze[start_cell[::-1]] == Cell.OCCUPIED:
+        if self.maze[start_cell[::1]] == Cell.OCCUPIED:
             raise Exception("Error: start cell at {} is not free".format(start_cell))
         if start_cell == self.__exit_cell:
             raise Exception("Error: start- and exit cell cannot be the same {}".format(start_cell))
@@ -280,6 +289,28 @@ class Maze:
             if status in (Status.WIN, Status.LOSE):
                 return state, reward, status
         return state, reward, status #temporary
+
+    def check_win_all(self, model):
+        """ Check if the model wins from all possible starting cells. """
+        previous = self.__render
+        self.__render = Render.NOTHING  # avoid rendering anything during execution of the check games
+
+        win = 0
+        lose = 0
+
+        for cell in self.empty:
+            if self.play(model, cell) == Status.WIN:
+                win += 1
+            else:
+                lose += 1
+
+        self.__render = previous  # restore previous rendering setting
+
+        logging.info("won: {} | lost: {} | win rate: {:.5f}".format(win, lose, win / (win + lose)))
+
+        result = True if lose == 0 else False
+
+        return result, win / (win + lose)
 
     def render_q(self, model):
         """ Render the recommended action(s) for each cell as provided by 'model'.
@@ -652,11 +683,11 @@ game = Maze(data2)
 game.render(location=(2,1,1))
 game.reset()
 
-test == Test.SARSA:
-game.render(Render.TRAINING)
-model = models.SarsaTableModel(game)
-h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
-                             stop_at_convergence=True)   
+#test == Test.SARSA:
+# game.render(Render.TRAINING)
+# model = models.SarsaTableModel(game)
+# h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
+#                              stop_at_convergence=True)   
 
 
 
@@ -664,13 +695,14 @@ h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.1
 # print("RANDOM MODEL")
 # game.render(Render.MOVES)
 # model = models.RandomModel(game)
-#  # print('model: ', model)
-# # print(game.actions)
+# print('model: ', model)
+# print(game.actions)
 # state, reward, status = game.play(model, start_cell=(0, 0, 0))
 # print("final: ",state, reward, status)
 
-#print("Q-TABLE TRAINING")
-#game.render(Render.TRAINING)
-#model = models.QTableModel(game)
-#h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
-                         #stop_at_convergence=True)
+print("Q-TABLE TRAINING")
+game.render(Render.TRAINING)
+model = models.QTableModel(game)
+h, w, _, _ = model.train(discount=0.90, exploration_rate=0.10, learning_rate=0.10, episodes=200,
+                         stop_at_convergence=True)
+
