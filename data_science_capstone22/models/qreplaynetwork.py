@@ -94,7 +94,7 @@ class QReplayNetworkModel(AbstractModel):
 
         if kwargs.get("load", False) is False:
             self.model = Sequential()
-            self.model.add(Dense(game.maze.size, input_shape=(2,), activation="relu"))
+            self.model.add(Dense(game.maze.size, input_shape=(3,), activation="relu"))
             self.model.add(Dense(game.maze.size, activation="relu"))
             self.model.add(Dense(len(game.actions)))
         else:
@@ -127,7 +127,7 @@ class QReplayNetworkModel(AbstractModel):
         exploration_rate = kwargs.get("exploration_rate", 0.10)
         exploration_decay = kwargs.get("exploration_decay", 0.995)  # % reduction per step = 100 - exploration decay
         episodes = max(kwargs.get("episodes", 1000), 1)
-        sample_size = kwargs.get("sample_size", 32)
+        sample_size = kwargs.get("sample_size", 5)
         check_convergence_every = kwargs.get("check_convergence_every", self.default_check_convergence_every)
 
         experience = ExperienceReplay(self.model, discount=discount)
@@ -142,6 +142,7 @@ class QReplayNetworkModel(AbstractModel):
 
         # training starts here
         for episode in range(1, episodes + 1):
+            print("TRAINING BEGUN")
             if not start_list:
                 start_list = self.environment.empty.copy()
             start_cell = random.choice(start_list)
@@ -205,6 +206,7 @@ class QReplayNetworkModel(AbstractModel):
 
     def q(self, state):
         """ Get q values for all actions for a certain state. """
+        print("Q FUNCTION CALLED")
         if type(state) == tuple:
             state = np.array(state, ndmin=2)
 
@@ -216,6 +218,7 @@ class QReplayNetworkModel(AbstractModel):
             :param np.ndarray state: game state
             :return int: selected action
         """
+        print("PREDICT FUNCTION CALLED")
         q = self.q(state)
 
         logging.debug("q[] = {}".format(q))
