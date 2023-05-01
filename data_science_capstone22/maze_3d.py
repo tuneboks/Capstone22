@@ -9,7 +9,6 @@ import numpy as np
 size = 4
 axes = [size, size, size]
 data = np.random.choice(2, size=axes, p=[0.7, 0.3])
-#data2 = np.random.choice(2, size=axes, p=[.9, .1])
 
 data2 = np.array([[[0, 1, 0, 1], [1, 1, 1, 1], [1, 1, 0, 0], [1, 1, 0, 1]], 
                   [[0, 0, 0, 1], [0, 1, 0, 0], [1, 1, 1, 0], [1, 1, 0, 1]], 
